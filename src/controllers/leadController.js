@@ -2,7 +2,11 @@ import { pool } from '../db.js';
 
 export async function createLead(req, res) {
   const { name, email, phone, message } = req.body;
-  if (!name || !phone) return res.status(400).json({ success: false, error: 'Name and phone required' });
+  
+  if (!name || !phone) {
+    return res.status(400).json({ success: false, error: 'Name and phone required' });
+  }
+
   try {
     const result = await pool.query(
       'INSERT INTO leads (name, email, phone, message) VALUES ($1,$2,$3,$4) RETURNING *',

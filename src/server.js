@@ -1,25 +1,49 @@
 import express from 'express';
 import cors from 'cors';
-import { db, testDB } from './db.js';
 import dotenv from 'dotenv';
+import leadsRouter from './routes/leads.js';
+import servicesRouter from './routes/services.js';
+import contactRouter from './routes/contact.js';
+import faqRouter from './routes/faq.js';
+import { testDB } from './db.js';
+
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://aravindpyaram-source.github.io'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// Test route
-app.get('/', async (req, res) => {
-  try {
-    const time = await testDB();
-    res.json({ message: 'Server is live', dbTime: time });
-  } catch (err) {
-    res.status(500).json({ error: 'DB connection failed', details: err.message });
-  }
-});
+app.get('/', (req, res) => res.json({ 
+  app: 'Aravind & Co API',
+  status: 'running',
+  timestamp: new Date().toISOString()
+}));
 
-app.listen(PORT, () => {
+app.use('/api/leads', leadsRouter);
+app.use('/api/services', servicesRouter);
+app.use('/api/contact', contactRouter);
+app.use('/api/faq', faqRouter);
+
+const PORT = process.env.PORT || 10000;
+
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Server listening on ${PORT}`);
+  try {
+    const now = await testDB();
+    console.log('DB connected:', now);
+  } catch (err) {
+    console.warn('DB connection failed:', err.message);
+  }
 });
