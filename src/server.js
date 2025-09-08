@@ -1,25 +1,25 @@
 import express from 'express';
 import cors from 'cors';
+import { db, testDB } from './db.js';
 import dotenv from 'dotenv';
-import leadsRouter from './routes/leads.js';
-import { testDB } from './db.js';
-
 dotenv.config();
+
 const app = express();
+const PORT = process.env.PORT || 5000;
+
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => res.json({ app: 'Aravind & Co API' }));
-app.use('/api/leads', leadsRouter);
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, async () => {
-  console.log(`Server listening on ${PORT}`);
+// Test route
+app.get('/', async (req, res) => {
   try {
-    const now = await testDB();
-    console.log('DB connected:', now);
+    const time = await testDB();
+    res.json({ message: 'Server is live', dbTime: time });
   } catch (err) {
-    console.warn('DB connection failed:', err.message);
+    res.status(500).json({ error: 'DB connection failed', details: err.message });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server listening on ${PORT}`);
 });
