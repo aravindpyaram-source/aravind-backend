@@ -5,12 +5,12 @@ dotenv.config();
 
 const { Pool } = pkg;
 
+// Use connection string if individual vars don't work
+const connectionString = process.env.DATABASE_URL || 
+  `postgresql://aravind_db_user:yN0K0dPA1VxXZhhqaNdcSykUfHrJauMy@dpg-d2vcfpp5pdvs73b9il8g-a.oregon-postgres.render.com/aravind_db;
+
 export const pool = new Pool({
-  host: process.env.PGHOST,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  database: process.env.PGDATABASE,
-  port: process.env.PGPORT || 5432,
+  connectionString,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
