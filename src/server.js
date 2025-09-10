@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
+import { pool } from './db.js';  // PostgreSQL pool configured in db.js
 
 dotenv.config();
 
@@ -13,15 +14,15 @@ const corsOptions = {
     'http://localhost:5173',
     'https://aravindpyaram-source.github.io'
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
   credentials: false
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Configure Nodemailer for email notifications
+// Configure Nodemailer
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -30,174 +31,173 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Health check endpoint
+// Health check
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Server is live',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ message: 'Server is live', timestamp: new Date().toISOString() });
 });
 
-// Mock leads endpoints
-app.get('/api/leads', (req, res) => {
-  res.json({
-    success: true,
-    leads: [
-      { id: 1, name: 'John Doe', email: 'john@example.com', phone: '+91-9876543210', message: 'Interested in CCTV installation' },
-      { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '+91-9876543211', message: 'Need networking setup' }
-    ]
-  });
+// GET leads (from database)
+app.get('/api/leads', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM leads ORDER BY created_at DESC');
+    res.json({ success: true, leads: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to fetch leads' });
+  }
 });
 
-app.post('/api/leads', (req, res) => {
+// POST lead
+app.post('/api/leads', async (req, res) => {
   const { name, email, phone, message } = req.body;
-  if (!name || !phone) {
-    return res.status(400).json({ success: false, error: 'Name and phone are required' });
+  if (!name || !phone) return res.status(400).json({ success: false, error: 'Name and phone are required' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO leads(name,email,phone,message) VALUES($1,$2,$3,$4) RETURNING *',
+      [name,email,phone,message]
+    );
+    res.json({ success: true, lead: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to save lead' });
   }
-  res.json({
-    success: true,
-    lead: { id: Date.now(), name, email, phone, message, created_at: new Date() }
-  });
 });
 
-// Mock services endpoints
-app.get('/api/services', (req, res) => {
-  res.json({
-    success: true,
-    services: [
-      { id: 1, title: 'CCTV Surveillance', description: 'Professional CCTV installation and monitoring', price: 'Starting from ₹15,000', category: 'security' },
-      { id: 2, title: 'Networking Solutions', description: 'Complete networking infrastructure setup', price: 'Starting from ₹8,000', category: 'networking' },
-      { id: 3, title: 'EPABX Systems', description: 'Advanced office communication systems', price: 'Starting from ₹12,000', category: 'communication' },
-      { id: 4, title: 'Biometric Access Control', description: 'Smart biometric solutions for security', price: 'Starting from ₹10,000', category: 'security' }
-    ]
-  });
+// GET services
+app.get('/api/services', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM services ORDER BY id');
+    res.json({ success: true, services: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to fetch services' });
+  }
 });
 
-app.post('/api/services', (req, res) => {
+// POST service
+app.post('/api/services', async (req, res) => {
   const { title, description, price, category } = req.body;
-  if (!title || !description) {
-    return res.status(400).json({ success: false, error: 'Title and description required' });
+  if (!title || !description) return res.status(400).json({ success: false, error: 'Title and description required' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO services(title,description,price,category) VALUES($1,$2,$3,$4) RETURNING *',
+      [title,description,price,category]
+    );
+    res.json({ success: true, service: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to save service' });
   }
-  res.json({
-    success: true,
-    service: { id: Date.now(), title, description, price, category, created_at: new Date() }
-  });
 });
 
-// Mock contact endpoints
-app.get('/api/contact', (req, res) => {
-  res.json({
-    success: true,
-    submissions: [
-      { id: 1, name: 'Contact Form', message: 'Contact endpoint working', created_at: new Date() }
-    ]
-  });
+// GET FAQs
+app.get('/api/faq', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM faqs ORDER BY id');
+    res.json({ success: true, faqs: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to fetch FAQs' });
+  }
 });
 
+// POST FAQ
+app.post('/api/faq', async (req, res) => {
+  const { question, answer, category } = req.body;
+  if (!question || !answer) return res.status(400).json({ success: false, error: 'Question and answer required' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO faqs(question,answer,category) VALUES($1,$2,$3) RETURNING *',
+      [question,answer,category||'general']
+    );
+    res.json({ success: true, faq: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to save FAQ' });
+  }
+});
+
+// POST contact form
 app.post('/api/contact', async (req, res) => {
   const { name, email, subject, message } = req.body;
-  if (!name || !email || !message) {
-    return res.status(400).json({ success: false, error: 'Name, email, and message are required' });
-  }
+  if (!name || !email || !message) return res.status(400).json({ success: false, error: 'Name, email, and message required' });
   try {
+    // save to DB
+    await pool.query(
+      'INSERT INTO contacts(name,email,subject,message) VALUES($1,$2,$3,$4)',
+      [name,email,subject,message]
+    );
+    // send notification email
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.NOTIFY_EMAIL,
       subject: `New Contact Inquiry: ${subject || 'General'}`,
-      html: `
-        <h3>New Inquiry</h3>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Subject:</strong> ${subject || '(none)'}</p>
-        <p><strong>Message:</strong></p>
-        <p>${message}</p>
-      `
+      html: `<h3>New Inquiry</h3>
+             <p><strong>Name:</strong> ${name}</p>
+             <p><strong>Email:</strong> ${email}</p>
+             <p><strong>Subject:</strong> ${subject || '(none)'}</p>
+             <p><strong>Message:</strong><br/>${message}</p>`
     });
-    res.json({ success: true, message: 'Contact form submitted successfully!' });
-  } catch (error) {
-    console.error('Contact email error:', error);
-    res.status(500).json({ success: false, error: 'Failed to send inquiry' });
+    res.json({ success: true, message: 'Contact form submitted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to process contact form' });
   }
 });
 
-// Mock FAQ endpoints
-app.get('/api/faq', (req, res) => {
-  res.json({
-    success: true,
-    faqs: [
-      { id: 1, question: 'What services do you provide?', answer: 'We provide CCTV, networking, EPABX, and biometric systems.', category: 'services' },
-      { id: 2, question: 'Do you offer maintenance?', answer: 'Yes, 24/7 support and maintenance.', category: 'support' },
-      { id: 3, question: 'Where do you serve?', answer: 'Hyderabad and surrounding areas.', category: 'coverage' },
-      { id: 4, question: 'Installation time?', answer: '1-2 days for CCTV; 3-5 days for networking.', category: 'installation' },
-      { id: 5, question: 'Warranty period?', answer: '1 year on installations; 6 months on service.', category: 'warranty' }
-    ]
-  });
-});
-
-app.post('/api/faq', (req, res) => {
-  const { question, answer, category } = req.body;
-  if (!question || !answer) {
-    return res.status(400).json({ success: false, error: 'Question and answer are required' });
-  }
-  res.json({
-    success: true,
-    faq: { id: Date.now(), question, answer, category: category || 'general', created_at: new Date() }
-  });
-});
-
-// Appointment booking endpoint
+// POST appointment
 app.post('/api/appointments', async (req, res) => {
   const { service, date, time, name, email, phone, address, message } = req.body;
-  if (!service || !date || !time || !name || !email || !phone) {
+  if (!service||!date||!time||!name||!email||!phone)
     return res.status(400).json({ success: false, error: 'Required fields missing' });
-  }
   try {
+    await pool.query(
+      'INSERT INTO appointments(service, date, time, name, email, phone, address, message) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+      [service,date,time,name,email,phone,address,message]
+    );
+    // notify you
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.NOTIFY_EMAIL,
       subject: `New Appointment - ${name}`,
-      html: `
-        <h3>Appointment Details</h3>
-        <p><strong>Service:</strong> ${service}</p>
-        <p><strong>Date:</strong> ${date}</p>
-        <p><strong>Time:</strong> ${time}</p>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Phone:</strong> ${phone}</p>
-        <p><strong>Address:</strong> ${address || 'N/A'}</p>
-        <p><strong>Message:</strong> ${message || 'None'}</p>
-      `
+      html: `<h3>Appointment Details</h3>
+             <p><strong>Service:</strong> ${service}</p>
+             <p><strong>Date:</strong> ${date}</p>
+             <p><strong>Time:</strong> ${time}</p>
+             <p><strong>Name:</strong> ${name}</p>
+             <p><strong>Email:</strong> ${email}</p>
+             <p><strong>Phone:</strong> ${phone}</p>
+             <p><strong>Address:</strong> ${address||'N/A'}</p>
+             <p><strong>Message:</strong> ${message||'None'}</p>`
     });
+    // confirm to client
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Appointment Confirmed',
-      html: `
-        <h3>Your Appointment is Confirmed</h3>
-        <p>Dear ${name},</p>
-        <p>Your appointment for <strong>${service}</strong> on <strong>${date}</strong> at <strong>${time}</strong> is confirmed.</p>
-        <p>Thanks,<br>Aravind & Co Team</p>
-      `
+      subject: 'Appointment Confirmed - Aravind & Co',
+      html: `<h3>Your Appointment is Confirmed</h3>
+             <p>Dear ${name},</p>
+             <p>Your appointment for <strong>${service}</strong> on <strong>${date}</strong> at <strong>${time}</strong> is confirmed.</p>
+             <p>Thanks,<br/>Aravind & Co Team</p>`
     });
-    res.json({ success: true, message: 'Appointment booked successfully!' });
-  } catch (error) {
-    console.error('Appointment error:', error);
+    res.json({ success: true, message: 'Appointment booked successfully' });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, error: 'Failed to book appointment' });
   }
 });
 
-// Newsletter subscription endpoint
+// POST newsletter subscription
 app.post('/api/blog/subscribe', async (req, res) => {
   const { email } = req.body;
-  if (!email) {
-    return res.status(400).json({ success: false, error: 'Email is required' });
-  }
+  if (!email) return res.status(400).json({ success: false, error: 'Email required' });
   try {
+    await pool.query('INSERT INTO subscribers(email) VALUES($1)', [email]);
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: 'Subscription Confirmed',
-      text: 'Thank you for subscribing to Aravind & Co blog updates!'
+      html: `<p>Thank you for subscribing to our blog updates!</p>`
     });
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -205,15 +205,14 @@ app.post('/api/blog/subscribe', async (req, res) => {
       subject: 'New Blog Subscriber',
       text: `New subscriber: ${email}`
     });
-    res.json({ success: true, message: 'Subscribed successfully!' });
-  } catch (error) {
-    console.error('Subscribe error:', error);
+    res.json({ success: true, message: 'Subscribed successfully' });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, error: 'Failed to subscribe' });
   }
 });
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT||10000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server listening on ${PORT}`);
-  console.log('API endpoints ready');
 });
