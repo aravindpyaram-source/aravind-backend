@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import nodemailer from 'nodemailer';
+
+import contactRouter from './routes/contact.js';
+import appointmentsRouter from './routes/appointments.js';
+import blogRouter from './routes/blog.js';
 
 dotenv.config();
 
@@ -21,24 +24,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Configure Nodemailer for email notifications
-const transporter = nodemailer.createTransporter({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Server is live',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ message: 'Server is live', timestamp: new Date().toISOString() });
 });
 
-// Mock leads endpoints
+// Mock leads endpoints (unchanged)
 app.get('/api/leads', (req, res) => {
   res.json({
     success: true,
@@ -55,13 +46,10 @@ app.post('/api/leads', (req, res) => {
   if (!name || !phone) {
     return res.status(400).json({ success: false, error: 'Name and phone are required' });
   }
-  res.json({
-    success: true,
-    lead: { id: Date.now(), name, email, phone, message, created_at: new Date().toISOString() }
-  });
+  res.json({ success: true, lead: { id: Date.now(), name, email, phone, message, created_at: new Date().toISOString() } });
 });
 
-// Mock services endpoints
+// Mock services endpoints (unchanged)
 app.get('/api/services', (req, res) => {
   res.json({
     success: true,
@@ -79,13 +67,10 @@ app.post('/api/services', (req, res) => {
   if (!title || !description) {
     return res.status(400).json({ success: false, error: 'Title and description required' });
   }
-  res.json({
-    success: true,
-    service: { id: Date.now(), title, description, price, category, created_at: new Date().toISOString() }
-  });
+  res.json({ success: true, service: { id: Date.now(), title, description, price, category, created_at: new Date().toISOString() } });
 });
 
-// Mock FAQ endpoints
+// Mock FAQ endpoints (unchanged)
 app.get('/api/faq', (req, res) => {
   res.json({
     success: true,
@@ -104,112 +89,15 @@ app.post('/api/faq', (req, res) => {
   if (!question || !answer) {
     return res.status(400).json({ success: false, error: 'Question and answer are required' });
   }
-  res.json({
-    success: true,
-    faq: { id: Date.now(), question, answer, category: category || 'general', created_at: new Date().toISOString() }
-  });
+  res.json({ success: true, faq: { id: Date.now(), question, answer, category: category || 'general', created_at: new Date().toISOString() } });
 });
 
-// Contact form with email (real functionality)
-app.post('/api/contact', async (req, res) => {
-  const { name, email, subject, message } = req.body;
-  if (!name || !email || !message) {
-    return res.status(400).json({ success: false, error: 'Name, email, and message are required' });
-  }
-  try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.NOTIFY_EMAIL,
-      subject: `New Contact Inquiry: ${subject || 'General'}`,
-      html: `
-        <h3>New Inquiry</h3>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Subject:</strong> ${subject || '(none)'}</p>
-        <p><strong>Message:</strong><br/>${message}</p>
-      `
-    });
-    res.json({ success: true, message: 'Contact form submitted successfully!' });
-  } catch (error) {
-    console.error('Contact email error:', error);
-    res.status(500).json({ success: false, error: 'Failed to send inquiry' });
-  }
-});
-
-// Appointment booking with email (real functionality)
-app.post('/api/appointments', async (req, res) => {
-  const { service, date, time, name, email, phone, address, message } = req.body;
-  if (!service || !date || !time || !name || !email || !phone) {
-    return res.status(400).json({ success: false, error: 'Required fields missing' });
-  }
-  try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.NOTIFY_EMAIL,
-      subject: `New Appointment - ${name}`,
-      html: `
-        <h3>Appointment Details</h3>
-        <p><strong>Service:</strong> ${service}</p>
-        <p><strong>Date:</strong> ${date}</p>
-        <p><strong>Time:</strong> ${time}</p>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Phone:</strong> ${phone}</p>
-        <p><strong>Address:</strong> ${address || 'N/A'}</p>
-        <p><strong>Message:</strong> ${message || 'None'}</p>
-      `
-    });
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Appointment Confirmed - Aravind & Co',
-      html: `
-        <h3>Your Appointment is Confirmed</h3>
-        <p>Dear ${name},</p>
-        <p>Your appointment for <strong>${service}</strong> on <strong>${date}</strong> at <strong>${time}</strong> is confirmed.</p>
-        <p>We will contact you 24 hours before to reconfirm.</p>
-        <p>Thanks,<br/>Aravind & Co Team</p>
-      `
-    });
-    res.json({ success: true, message: 'Appointment booked successfully!' });
-  } catch (error) {
-    console.error('Appointment error:', error);
-    res.status(500).json({ success: false, error: 'Failed to book appointment' });
-  }
-});
-
-// Newsletter subscription with email (real functionality)
-app.post('/api/blog/subscribe', async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    return res.status(400).json({ success: false, error: 'Email is required' });
-  }
-  try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Subscription Confirmed - Aravind & Co Blog',
-      html: `
-        <h3>Thank You for Subscribing!</h3>
-        <p>You will receive our latest blog updates and security tips directly in your inbox.</p>
-        <p>Best regards,<br/>Aravind & Co Team</p>
-      `
-    });
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.NOTIFY_EMAIL,
-      subject: 'New Blog Subscriber',
-      text: `New subscriber: ${email}`
-    });
-    res.json({ success: true, message: 'Subscribed successfully!' });
-  } catch (error) {
-    console.error('Subscribe error:', error);
-    res.status(500).json({ success: false, error: 'Failed to subscribe' });
-  }
-});
+// Use routers for modular routes
+app.use('/api/contact', contactRouter);
+app.use('/api/appointments', appointmentsRouter);
+app.use('/api/blog', blogRouter);
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server listening on ${PORT}`);
-  console.log('Running with mock APIs - no database required');
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
