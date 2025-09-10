@@ -14,6 +14,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Health check GET route
+router.get('/', (req, res) => {
+  res.json({ message: 'Appointments route is alive' });
+});
+
+// Appointment booking POST route
 router.post('/', async (req, res) => {
   const { service, date, time, name, email, phone, address, message } = req.body;
   if (!service || !date || !time || !name || !email || !phone) {
