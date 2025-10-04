@@ -6,7 +6,7 @@ dotenv.config();
 
 const router = express.Router();
 
-const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransporter({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
@@ -16,22 +16,30 @@ const transporter = nodemailer.createTransport({
 
 // Health check GET route
 router.get('/', (req, res) => {
-  res.json({ message: 'Appointments route is alive' });
+  res.json({
+    message: 'Appointments route is alive'
+  });
 });
 
 // Appointment booking POST route
 router.post('/', async (req, res) => {
   const { service, date, time, name, email, phone, address, message } = req.body;
+
   if (!service || !date || !time || !name || !email || !phone) {
-    return res.status(400).json({ success: false, error: 'Required fields missing' });
+    return res.status(400).json({
+      success: false,
+      error: 'Required fields missing'
+    });
   }
+
   try {
+    // Send notification email to admin
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.NOTIFY_EMAIL,
       subject: `New Appointment - ${name}`,
       html: `
-        <p><strong>Message:</strong> ${message || 'None'}</p>
+        <h3>Appointment Details</h3>
         <p><strong>Service:</strong> ${service}</p>
         <p><strong>Date:</strong> ${date}</p>
         <p><strong>Time:</strong> ${time}</p>
@@ -39,24 +47,35 @@ router.post('/', async (req, res) => {
         <p><strong>Email:</strong> ${email}</p>
         <p><strong>Phone:</strong> ${phone}</p>
         <p><strong>Address:</strong> ${address || 'N/A'}</p>
+        <p><strong>Message:</strong> ${message || 'None'}</p>
       `
     });
+
+    // Send confirmation email to customer
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: 'Appointment Confirmed - Aravind & Co',
       html: `
+        <h3>Your Appointment is Confirmed</h3>
         <p>Dear ${name},</p>
         <p>Your appointment for <strong>${service}</strong> on <strong>${date}</strong> at <strong>${time}</strong> is confirmed.</p>
         <p>We will contact you 24 hours before to reconfirm.</p>
-        <p>Thanks,<br/>Aravind & Co Team</p>
-        <p>You will receive our latest blog updates and security tips directly in your inbox.</p>
+        <p>Thanks,<br>Aravind & Co Team</p>
       `
     });
-    res.json({ success: true, message: 'Appointment booked successfully!' });
+
+    res.json({
+      success: true,
+      message: 'Appointment booked successfully!'
+    });
+
   } catch (error) {
     console.error('Appointment email error:', error);
-    res.status(500).json({ success: false, error: 'Failed to send appointment email' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send appointment email'
+    });
   }
 });
 
