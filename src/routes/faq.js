@@ -1,13 +1,4 @@
 import express from 'express';
-import { getFAQs, createFAQ } from '../controllers/faqController.js';
-
-const router = express.Router();
-
-router.get('/', getFAQs);
-router.post('/', createFAQ);
-
-export default router;
-import express from 'express';
 
 const router = express.Router();
 
@@ -23,7 +14,7 @@ const mockFaqs = [
     id: 2,
     question: 'Do you offer maintenance services?',
     answer: 'Yes, we provide 24/7 support and maintenance for all installations.',
-    category: 'support'
+    category: 'support'  
   },
   {
     id: 3,

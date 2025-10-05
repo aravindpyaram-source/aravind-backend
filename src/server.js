@@ -9,47 +9,108 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-console.log('Server starting...');
+// 📊 STORAGE FOR APPOINTMENTS
+let appointments = [];
+let contacts = [];
+let subscribers = [];
 
-// Root route
-app.get('/', (req, res) => {
-  res.json({ message: 'Server is working', timestamp: new Date() });
+// ===== ADMIN ROUTES =====
+
+// 📅 VIEW ALL APPOINTMENTS
+app.get('/admin/appointments', (req, res) => {
+  res.json({
+    success: true,
+    total: appointments.length,
+    appointments: appointments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  });
 });
 
-// Contact routes - BOTH GET and POST
+// 📊 ADMIN DASHBOARD  
+app.get('/admin/dashboard', (req, res) => {
+  res.json({
+    success: true,
+    stats: {
+      total_appointments: appointments.length,
+      pending_appointments: appointments.filter(a => a.status === 'pending').length,
+      confirmed_appointments: appointments.filter(a => a.status === 'confirmed').length
+    },
+    recent_appointments: appointments.slice(-5).reverse()
+  });
+});
+
+// ===== YOUR EXISTING ROUTES =====
+
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Server with Admin Dashboard',
+    admin_urls: {
+      appointments: `http://localhost:${PORT}/admin/appointments`,
+      dashboard: `http://localhost:${PORT}/admin/dashboard`
+    }
+  });
+});
+
+// 📅 APPOINTMENTS - ENHANCED WITH STORAGE
+app.post('/api/appointments', (req, res) => {
+  console.log('📅 NEW APPOINTMENT:', req.body);
+  const { service, date, time, name, email, phone, address, message } = req.body;
+
+  if (!service || !date || !time || !name || !email || !phone) {
+    return res.status(400).json({
+      success: false,
+      error: 'Required fields missing'
+    });
+  }
+
+  // 💾 STORE APPOINTMENT
+  const appointment = {
+    id: Date.now().toString(),
+    service, date, time, name, email, phone,
+    address: address || '',
+    message: message || '',
+    status: 'pending',
+    created_at: new Date().toISOString()
+  };
+  
+  appointments.push(appointment);
+  console.log(`✅ Stored! Total appointments: ${appointments.length}`);
+
+  res.json({ 
+    success: true, 
+    message: 'Appointment booked successfully!',
+    view_url: `http://localhost:${PORT}/admin/appointments`
+  });
+});
+
+// Your other routes (contact, blog, etc.)
 app.get('/api/contact', (req, res) => {
-  console.log('GET /api/contact called');
-  res.json({ success: true, message: 'Contact GET route working' });
+  res.json({ success: true, message: 'Contact route working' });
 });
 
 app.post('/api/contact', (req, res) => {
-  console.log('POST /api/contact called with:', req.body);
-  res.json({ success: true, message: 'Contact POST route working', data: req.body });
+  const { name, email, subject, message } = req.body;
+  contacts.push({
+    id: Date.now().toString(),
+    name, email, subject: subject || 'General', message,
+    created_at: new Date().toISOString()
+  });
+  res.json({ success: true, message: 'Contact submitted!' });
 });
 
-// Appointments routes - BOTH GET and POST  
-app.get('/api/appointments', (req, res) => {
-  console.log('GET /api/appointments called');
-  res.json({ success: true, message: 'Appointments GET route working' });
-});
-
-app.post('/api/appointments', (req, res) => {
-  console.log('POST /api/appointments called with:', req.body);
-  res.json({ success: true, message: 'Appointments POST route working', data: req.body });
-});
-
-// Blog subscribe routes - BOTH GET and POST
 app.get('/api/blog/subscribe', (req, res) => {
-  console.log('GET /api/blog/subscribe called');
-  res.json({ success: true, message: 'Blog subscribe GET route working' });
+  res.json({ success: true, message: 'Blog subscribe working' });
 });
 
 app.post('/api/blog/subscribe', (req, res) => {
-  console.log('POST /api/blog/subscribe called with:', req.body);
-  res.json({ success: true, message: 'Blog subscribe POST route working', data: req.body });
+  const { email } = req.body;
+  subscribers.push({
+    id: Date.now().toString(), 
+    email, 
+    subscribed_at: new Date().toISOString()
+  });
+  res.json({ success: true, message: 'Subscribed!' });
 });
 
-// Your existing working routes
 app.get('/api/leads', (req, res) => {
   res.json({ success: true, leads: [] });
 });
@@ -62,27 +123,8 @@ app.get('/api/faq', (req, res) => {
   res.json({ success: true, faqs: [] });
 });
 
-// Catch all route to see what's being requested
-app.use('*', (req, res) => {
-  console.log(`Route not found: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ 
-    error: 'Route not found', 
-    method: req.method, 
-    path: req.originalUrl 
-  });
-});
-
 app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-  console.log('Available routes:');
-  console.log('  GET  /');
-  console.log('  GET  /api/contact');
-  console.log('  POST /api/contact'); 
-  console.log('  GET  /api/appointments');
-  console.log('  POST /api/appointments');
-  console.log('  GET  /api/blog/subscribe');
-  console.log('  POST /api/blog/subscribe');
-  console.log('  GET  /api/leads');
-  console.log('  GET  /api/services');
-  console.log('  GET  /api/faq');
+  console.log(`🎉 Server running on http://localhost:${PORT}`);
+  console.log(`📊 View Appointments: http://localhost:${PORT}/admin/appointments`);
+  console.log(`📈 Admin Dashboard: http://localhost:${PORT}/admin/dashboard`);
 });
